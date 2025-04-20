@@ -6,33 +6,23 @@ const questionRoutes = require('./routes/questionRoutes');
 const mockQuestionRoutes = require('./routes/mockQuestionRoutes');
 const pdfRoutes = require('./routes/pdfRoutes');
 const deepSeekRoutes = require('./routes/deepSeekQuestions'); 
-const geminiRoutes = require('./routes/geminiRoutes');
+const geminiRoutes = require('./routes/AdvanceGemniRoutes');
+const minimalGeminiRoutes = require('./routes/MinimalRoute'); // Add this line for Minimal Generator
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
 // API routes
-app.use('/api/questions', questionRoutes);  http://localhost:5000/api/questions/generate // Real API
+app.use('/api/questions', questionRoutes);  // http://localhost:5000/api/questions/generate
 app.use('/api/questions', mockQuestionRoutes);  // Mock API
 app.use('/api/pdf', pdfRoutes);                 // PDF generation
-
-app.use('/api/deepseek-questions', deepSeekRoutes); //http://localhost:5000/api/deepseek-questions/generate
-
-
-app.use('/api/gemini', geminiRoutes);
+app.use('/api/deepseek-questions', deepSeekRoutes); // http://localhost:5000/api/deepseek-questions/generate
+app.use('/api/gemini', geminiRoutes); // http://localhost:5000/api/gemini/generate-advanced-questions
+app.use('/api/gemini', minimalGeminiRoutes); // http://localhost:5000/api/gemini/generate-minimal-questions
 
 const PORT = process.env.PORT || 5000;
 
-// mongoose.connect(process.env.MONGODB_URI, {
-//   useNewUrlParser: true,
-//   useUnifiedTopology: true,
-// })
-// .then(() => {
-//   console.log('MongoDB connected');
-//   app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
-// })
-// .catch(err => console.error(err));
-app.listen(PORT, ()=>{
-  console.log("Server is running on the port", PORT)
-})
+app.listen(PORT, () => {
+  console.log("Server is running on the port", PORT);
+});

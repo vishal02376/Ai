@@ -13,7 +13,14 @@ const LANGUAGE_PROMPTS = {
     "Generate responses in pure, formal Hindi. Use technical terms accurately and avoid colloquialisms unless specified.",
 };
 
-exports.generateQuestions = async (req, res) => {
+// Tone mapping
+const TONE_PROMPTS = {
+  Professional: "Maintain a formal, professional tone throughout the questions and answers. Use technical terminology appropriately.",
+  Casual: "Use a more conversational and casual tone while keeping the content technically accurate. Suitable for startup environments.",
+  "Simple for Freshers": "Use simple language and basic explanations. Avoid complex jargon. Explain concepts as if to a beginner.",
+};
+
+exports.generateAdvancedQuestions = async (req, res) => {
   try {
     // Validate required fields
     if (
@@ -22,12 +29,15 @@ exports.generateQuestions = async (req, res) => {
       !req.body.language ||
       !req.body.companyName ||
       !req.body.experience ||
-      !req.body.questionType
+      !req.body.questionType ||
+      !req.body.seniorityLevel ||
+      !req.body.numberOfQuestions ||
+      !req.body.answerLength
     ) {
       return res.status(400).json({
         success: false,
         message:
-          "Job title, skills, language, company name, experience, and question type are required fields",
+          "Job title, skills, language, company name, experience, question type, seniority level, number of questions, and answer length are required fields",
         example: {
           jobTitle: "React Developer",
           skills: "JavaScript, React, Redux",
@@ -35,8 +45,10 @@ exports.generateQuestions = async (req, res) => {
           experience: "3",
           questionType: "Technical",
           language: "Hinglish",
+          seniorityLevel: "Mid",
           numberOfQuestions: "5",
           answerLength: "short",
+          tone: "Professional"
         },
       });
     }
@@ -52,7 +64,8 @@ exports.generateQuestions = async (req, res) => {
       jd,
       numberOfQuestions = "5",
       answerLength = "short",
-      includeCodeSnippets = false,
+      seniorityLevel = "Mid",
+      tone = "Professional"
     } = req.body;
 
     // Prepare skills array
@@ -66,44 +79,51 @@ exports.generateQuestions = async (req, res) => {
     };
 
     // Enhanced prompt construction
-    let prompt = `${
-      LANGUAGE_PROMPTS[language] || LANGUAGE_PROMPTS["English"]
-    }\n\n`;
-    prompt += `You are an expert interviewer creating ${numberOfQuestions} ${questionType} interview questions for a ${jobTitle} position at ${companyName}.\n\n`;
+    let prompt = `${LANGUAGE_PROMPTS[language] || LANGUAGE_PROMPTS["English"]}\n`;
+    prompt += `${TONE_PROMPTS[tone] || TONE_PROMPTS["Professional"]}\n\n`;
+    
+    prompt += `You are an expert interviewer creating ${numberOfQuestions} ${questionType} interview questions for a ${seniorityLevel} level ${jobTitle} position at ${companyName}.\n\n`;
 
-    prompt += `### Requirements:\n`;
+    prompt += `### Candidate Profile:\n`;
     prompt += `- **Skills**: ${skillsArray.join(", ")}\n`;
-    prompt += `- **Experience Level**: ${experience} years (tailor questions to ${
-      experience <= 2 ? "beginner" : experience <= 5 ? "intermediate" : "senior"
-    } level)\n`;
+    prompt += `- **Experience**: ${experience} years\n`;
+    prompt += `- **Seniority Level**: ${seniorityLevel}\n`;
     if (jd) {
       prompt += `- **Job Description**: ${jd}\n`;
     }
+    
+    prompt += `\n### Interview Requirements:\n`;
     prompt += `- **Question Type**: ${questionType}\n`;
-    prompt += `- **Include Code Snippets**: No\n`;
+    prompt += `- **Language**: ${language}\n`;
+    prompt += `- **Tone**: ${tone}\n`;
+    prompt += `- **Number of Questions**: ${numberOfQuestions}\n`;
+    prompt += `- **Answer Length**: ${answerLengthMap[answerLength] || "30-50 words"}\n`;
 
     prompt += `\n### Instructions:\n`;
-    prompt += `- Generate **exactly ${numberOfQuestions} question-answer pairs**.\n`;
-    prompt += `- Each question and answer must be complete and not truncated.\n`;
-    prompt += `- Both questions and answers must be in ${language}, with no exceptions.\n`;
-    prompt += `- **Do not include code snippets** in questions or answers.\n`;
-    prompt += `- Answers should be **${
-      answerLengthMap[answerLength] || "30-50 words"
-    }** and provide clear, accurate explanations.\n`;
-    prompt += `- Format each pair strictly as follows, with no variations:\n`;
-    prompt += `  Q: [Question text]\n`;
-    prompt += `  A: [Answer text]\n\n`;
-    prompt += `- Do not use numbered questions (e.g., "1. Question") or other prefixes. Use only "Q:" and "A:".\n`;
-    prompt += `- If inputs are unclear, make reasonable assumptions based on the job title and industry standards.\n`;
-    prompt += `- Ensure the response is complete and contains all ${numberOfQuestions} pairs without truncation.\n`;
-
-    // Specific instructions for question types
-    if (questionType === "Technical") {
-      prompt += `- For Technical questions, focus strictly on technical concepts, differences, implementations, or debugging related to the specified skills. Examples: "What is the difference between useState and useReducer in React? Explain with an example." or "How does JavaScript's event loop work?" Avoid situational or behavioral questions (e.g., "How would you handle a team conflict?").\n`;
-    } else if (questionType === "Situational") {
-      prompt += `- For Situational questions, focus on hypothetical scenarios relevant to the job role, e.g., "Agar API call fail ho jaye to kya karoge?" or "How would you handle a tight project deadline?"\n`;
-    } else if (questionType === "Behavioral") {
-      prompt += `- For Behavioral questions, focus on past experiences or personal qualities, e.g., "Tell me about a time you solved a complex bug." or "Kaise ensure karte ho code quality?"\n`;
+    prompt += `- Generate exactly ${numberOfQuestions} question-answer pairs.\n`;
+    prompt += `- Format each pair strictly as: Q: [Question] A: [Answer]\n`;
+    prompt += `- Questions should be tailored for ${seniorityLevel} level candidates.\n`;
+    prompt += `- Answers should match the ${tone} tone and be in ${language}.\n`;
+    prompt += `- For technical questions, focus on ${skillsArray.join(", ")}.\n`;
+    prompt += `- Ensure questions test both theoretical knowledge and practical application.\n`;
+    
+    // Add specific instructions based on question type
+    switch(questionType) {
+      case "Technical":
+        prompt += `- Focus on technical concepts, implementations, and problem-solving.\n`;
+        prompt += `- Include questions about best practices and common pitfalls.\n`;
+        break;
+      case "Behavioral":
+        prompt += `- Focus on past experiences, teamwork, and problem-solving approaches.\n`;
+        prompt += `- Use STAR (Situation, Task, Action, Result) format for answers.\n`;
+        break;
+      case "Situational":
+        prompt += `- Create realistic work scenarios the candidate might encounter.\n`;
+        prompt += `- Focus on decision-making and problem-solving skills.\n`;
+        break;
+      case "Mixed":
+        prompt += `- Include a balanced mix of technical, behavioral, and situational questions.\n`;
+        break;
     }
 
     // Get Gemini model
@@ -111,7 +131,7 @@ exports.generateQuestions = async (req, res) => {
       model: "gemini-1.5-flash-latest",
       generationConfig: {
         maxOutputTokens: 3000,
-        temperature: 0.7,
+        temperature: tone === "Professional" ? 0.5 : tone === "Casual" ? 0.7 : 0.3,
       },
     });
 
@@ -123,9 +143,6 @@ exports.generateQuestions = async (req, res) => {
     const response = await result.response;
     const text = response.text();
 
-    // Log raw response for debugging
-    console.log("Raw Gemini Response:", text);
-
     // Parse response into clean Q&A pairs
     const qaPairs = parseGeminiResponse(text, numberOfQuestions);
 
@@ -133,8 +150,11 @@ exports.generateQuestions = async (req, res) => {
       success: true,
       questions: qaPairs,
       meta: {
-        language: language,
-        questionType: questionType,
+        language,
+        questionType,
+        seniorityLevel,
+        tone,
+        answerLength,
         jdIncluded: !!jd,
       },
     });
@@ -153,7 +173,7 @@ exports.generateQuestions = async (req, res) => {
   }
 };
 
-// Enhanced response parser for multilingual support
+// Response parser remains the same as in your original code
 function parseGeminiResponse(text, numberOfQuestions) {
   const qaPairs = [];
   const blocks = text.split("\n\n").filter((block) => block.trim());
