@@ -13,10 +13,10 @@ app.use(cors());
 app.use(express.json());
 
 // API routes
-app.use('/api/questions', questionRoutes);  // http://localhost:5000/api/questions/generate
+// app.use('/api/questions', questionRoutes);  // http://localhost:5000/api/questions/generate
 app.use('/api/questions', mockQuestionRoutes);  // Mock API
 app.use('/api/pdf', pdfRoutes);                 // PDF generation
-app.use('/api/deepseek-questions', deepSeekRoutes); // http://localhost:5000/api/deepseek-questions/generate
+// app.use('/api/deepseek-questions', deepSeekRoutes); // http://localhost:5000/api/deepseek-questions/generate
 app.use('/api/gemini', geminiRoutes); // http://localhost:5000/api/gemini/generate-advanced-questions
 app.use('/api/gemini', minimalGeminiRoutes); // http://localhost:5000/api/gemini/generate-minimal-questions
 
