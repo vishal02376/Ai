@@ -4,8 +4,7 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const questionRoutes = require('./routes/questionRoutes');
 const mockQuestionRoutes = require('./routes/mockQuestionRoutes');
-const pdfRoutes = require('./routes/pdfRoutes');
-const deepSeekRoutes = require('./routes/deepSeekQuestions'); 
+const pdfRoutes = require('./routes/pdfRoutes'); 
 const geminiRoutes = require('./routes/AdvanceGemniRoutes');
 const minimalGeminiRoutes = require('./routes/MinimalRoute'); // Add this line for Minimal Generator
 
