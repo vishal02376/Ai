@@ -1,3 +1,5 @@
+//MinimalGemeni.js
+
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 require("dotenv").config();
 
@@ -38,15 +40,23 @@ exports.generateMinimalQuestions = async (req, res) => {
 
     // Prepare skills array
     const skillsArray = skills.split(",").map((skill) => skill.trim());
-
-    // Construct prompt with clear Q/A format
     let prompt = `${LANGUAGE_PROMPTS[language] || LANGUAGE_PROMPTS["English"]}\n\n`;
-    prompt += `Generate 5 ${questionType.toLowerCase()} interview questions with answers for a ${experience} ${jobTitle} candidate with skills in ${skillsArray.join(", ")}.\n\n`;
-    prompt += `Format each pair exactly like this:\n`;
-    prompt += `Q: [Your question here]\n`;
-    prompt += `A: [Your answer here]\n\n`;
-    prompt += `Questions should be specific to the role and experience level.\n`;
-    prompt += `Answers should be concise but comprehensive (2-3 sentences).\n`;
+
+    prompt += `
+    You are an expert technical interviewer. Generate 5 detailed and realistic interview Q&A pairs for a ${experience} ${jobTitle} who is applying for a job role in the tech industry. The candidate has skills in ${skillsArray.join(", ")}.
+    
+    Follow these rules:
+    1. Focus on ${questionType} questions only.
+    2. Format strictly as:
+    Q: [Insert question here]  
+    A: [Insert 2-3 sentence answer here]
+    
+    3. Each question should test a different concept.
+    4. Use the ${language} language fluently. Ensure clarity and conciseness.
+    5. Make the answers practical and insightful – helpful for real interview scenarios.
+    6. Avoid generic questions. Tailor it specifically to the job title and skills.
+    `;
+    
 
     // Add type-specific instructions
     switch (questionType) {

@@ -22,6 +22,8 @@ app.use('/api/gemini', minimalGeminiRoutes); // http://localhost:5000/api/gemini
 
 const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, () => {
-  console.log("Server is running on the port", PORT);
+
+
+app.listen(PORT, '0.0.0.0', () => {
+  console.log('Server running on port 5000');
 });

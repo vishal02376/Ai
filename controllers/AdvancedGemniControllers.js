@@ -3,41 +3,34 @@ require("dotenv").config();
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-// Language mapping
-const LANGUAGE_PROMPTS = {
-  English:
-    "Generate responses in formal, professional English. Use clear and concise language suitable for technical interviews.",
-  Hinglish:
-    'Generate both questions and answers in Hinglish (a mix of Hindi and English) commonly used in Indian tech interviews. Ensure questions and answers are fully in Hinglish, with no English-only questions. Examples: Q: "React mein useState kaise kaam karta hai? Ek example do." A: "useState ek hook hai jo state manage karta hai. Example: const [count, setCount] = useState(0); setCount(count + 1) se value update hoti hai."',
-  Hindi:
-    "Generate responses in pure, formal Hindi. Use technical terms accurately and avoid colloquialisms unless specified.",
-};
-
-// Tone mapping
-const TONE_PROMPTS = {
-  Professional: "Maintain a formal, professional tone throughout the questions and answers. Use technical terminology appropriately.",
-  Casual: "Use a more conversational and casual tone while keeping the content technically accurate. Suitable for startup environments.",
-  "Simple for Freshers": "Use simple language and basic explanations. Avoid complex jargon. Explain concepts as if to a beginner.",
+// Enhanced language and tone prompts
+const PROMPT_CONFIG = {
+  languages: {
+    English: "Generate in professional English with technical accuracy.",
+    Hinglish: "Generate in Hinglish (Hindi+English mix) as used in Indian tech interviews.",
+    Hindi: "Generate in formal Hindi with proper technical terms."
+  },
+  tones: {
+    Professional: "Maintain formal, technical tone.",
+    Casual: "Use conversational tone suitable for startups.",
+    "Simple for Freshers": "Use simple language for beginners."
+  }
 };
 
 exports.generateAdvancedQuestions = async (req, res) => {
   try {
-    // Validate required fields
-    if (
-      !req.body.jobTitle ||
-      !req.body.skills ||
-      !req.body.language ||
-      !req.body.companyName ||
-      !req.body.experience ||
-      !req.body.questionType ||
-      !req.body.seniorityLevel ||
-      !req.body.numberOfQuestions ||
-      !req.body.answerLength
-    ) {
+    // Validate required fields with better error messages
+    const requiredFields = [
+      'jobTitle', 'skills', 'language', 'companyName',
+      'experience', 'questionType', 'seniorityLevel',
+      'numberOfQuestions', 'answerLength'
+    ];
+    
+    const missingFields = requiredFields.filter(field => !req.body[field]);
+    if (missingFields.length > 0) {
       return res.status(400).json({
         success: false,
-        message:
-          "Job title, skills, language, company name, experience, question type, seniority level, number of questions, and answer length are required fields",
+        message: `Missing required fields: ${missingFields.join(', ')}`,
         example: {
           jobTitle: "React Developer",
           skills: "JavaScript, React, Redux",
@@ -49,84 +42,48 @@ exports.generateAdvancedQuestions = async (req, res) => {
           numberOfQuestions: "5",
           answerLength: "short",
           tone: "Professional"
-        },
+        }
       });
     }
 
-    // Extract all form data
+    // Extract and sanitize inputs
     const {
-      jobTitle,
-      skills,
-      companyName,
-      experience,
-      questionType,
-      language,
-      jd,
-      numberOfQuestions = "5",
+      jobTitle, skills, companyName, experience,
+      questionType, language, jd,
+      numberOfQuestions = 5,
       answerLength = "short",
       seniorityLevel = "Mid",
       tone = "Professional"
     } = req.body;
 
-    // Prepare skills array
-    const skillsArray = skills.split(",").map((skill) => skill.trim());
-
-    // Map answer length to word count
-    const answerLengthMap = {
-      short: "30-50 words",
-      medium: "50-100 words",
-      detailed: "100-150 words",
-    };
-
-    // Enhanced prompt construction
-    let prompt = `${LANGUAGE_PROMPTS[language] || LANGUAGE_PROMPTS["English"]}\n`;
-    prompt += `${TONE_PROMPTS[tone] || TONE_PROMPTS["Professional"]}\n\n`;
-    
-    prompt += `You are an expert interviewer creating ${numberOfQuestions} ${questionType} interview questions for a ${seniorityLevel} level ${jobTitle} position at ${companyName}.\n\n`;
-
-    prompt += `### Candidate Profile:\n`;
-    prompt += `- **Skills**: ${skillsArray.join(", ")}\n`;
-    prompt += `- **Experience**: ${experience} years\n`;
-    prompt += `- **Seniority Level**: ${seniorityLevel}\n`;
-    if (jd) {
-      prompt += `- **Job Description**: ${jd}\n`;
-    }
-    
-    prompt += `\n### Interview Requirements:\n`;
-    prompt += `- **Question Type**: ${questionType}\n`;
-    prompt += `- **Language**: ${language}\n`;
-    prompt += `- **Tone**: ${tone}\n`;
-    prompt += `- **Number of Questions**: ${numberOfQuestions}\n`;
-    prompt += `- **Answer Length**: ${answerLengthMap[answerLength] || "30-50 words"}\n`;
-
-    prompt += `\n### Instructions:\n`;
-    prompt += `- Generate exactly ${numberOfQuestions} question-answer pairs.\n`;
-    prompt += `- Format each pair strictly as: Q: [Question] A: [Answer]\n`;
-    prompt += `- Questions should be tailored for ${seniorityLevel} level candidates.\n`;
-    prompt += `- Answers should match the ${tone} tone and be in ${language}.\n`;
-    prompt += `- For technical questions, focus on ${skillsArray.join(", ")}.\n`;
-    prompt += `- Ensure questions test both theoretical knowledge and practical application.\n`;
-    
-    // Add specific instructions based on question type
-    switch(questionType) {
-      case "Technical":
-        prompt += `- Focus on technical concepts, implementations, and problem-solving.\n`;
-        prompt += `- Include questions about best practices and common pitfalls.\n`;
-        break;
-      case "Behavioral":
-        prompt += `- Focus on past experiences, teamwork, and problem-solving approaches.\n`;
-        prompt += `- Use STAR (Situation, Task, Action, Result) format for answers.\n`;
-        break;
-      case "Situational":
-        prompt += `- Create realistic work scenarios the candidate might encounter.\n`;
-        prompt += `- Focus on decision-making and problem-solving skills.\n`;
-        break;
-      case "Mixed":
-        prompt += `- Include a balanced mix of technical, behavioral, and situational questions.\n`;
-        break;
+    // Validate answer length
+    const validLengths = ["short", "medium", "detailed"];
+    if (!validLengths.includes(answerLength)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid answer length. Use: short, medium, or detailed"
+      });
     }
 
-    // Get Gemini model
+    // Build the prompt
+    const promptParts = [
+      `${PROMPT_CONFIG.languages[language] || PROMPT_CONFIG.languages.English}`,
+      `${PROMPT_CONFIG.tones[tone] || PROMPT_CONFIG.tones.Professional}`,
+      "",
+      `Generate exactly ${numberOfQuestions} ${questionType} interview questions for a ${seniorityLevel} ${jobTitle} at ${companyName}.`,
+      `Candidate has ${experience} years experience with ${skills}.`,
+      jd ? `Job Description Context: ${jd}` : "",
+      "",
+      "Format each question-answer pair exactly like this:",
+      "Q: [Full question text]",
+      "A: [Complete answer in specified length and tone]",
+      "",
+      "Important: Only return the Q&A pairs, no additional commentary."
+    ];
+
+    const prompt = promptParts.filter(part => part.trim()).join("\n");
+
+    // Configure model
     const model = genAI.getGenerativeModel({
       model: "gemini-1.5-flash-latest",
       generationConfig: {
@@ -136,122 +93,120 @@ exports.generateAdvancedQuestions = async (req, res) => {
     });
 
     // Generate content
-    const result = await model.generateContent({
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
-    });
-
+    const result = await model.generateContent(prompt);
     const response = await result.response;
     const text = response.text();
 
-    // Parse response into clean Q&A pairs
-    const qaPairs = parseGeminiResponse(text, numberOfQuestions);
+    // Parse response with improved logic
+    const qaPairs = parseResponse(text, numberOfQuestions);
+
+    // Validate we got correct number of questions
+    if (qaPairs.length < numberOfQuestions) {
+      console.warn(`Requested ${numberOfQuestions} questions but got ${qaPairs.length}`);
+    }
 
     return res.json({
       success: true,
-      questions: qaPairs,
+      questions: qaPairs.slice(0, numberOfQuestions),
       meta: {
         language,
         questionType,
         seniorityLevel,
         tone,
         answerLength,
-        jdIncluded: !!jd,
-      },
+        generatedAt: new Date().toISOString()
+      }
     });
+
   } catch (error) {
-    console.error("Gemini API Error:", {
+    console.error("Generation Error:", {
       message: error.message,
       stack: error.stack,
-      requestBody: req.body,
+      requestBody: req.body
     });
+    
     return res.status(500).json({
       success: false,
-      message: "Failed to generate questions",
+      message: "Question generation failed",
       error: error.message,
-      solution: "Please check your inputs and try again",
+      solution: "Please check your inputs and try again"
     });
   }
 };
 
-// Response parser remains the same as in your original code
-function parseGeminiResponse(text, numberOfQuestions) {
+// Improved response parser
+function parseResponse(text, expectedCount) {
+  const lines = text.split('\n').map(line => line.trim()).filter(line => line);
   const qaPairs = [];
-  const blocks = text.split("\n\n").filter((block) => block.trim());
+  let currentQ = null;
+  let currentA = null;
 
-  let currentQuestion = "";
-  let currentAnswer = "";
-  let isQuestion = false;
-
-  blocks.forEach((block) => {
-    const lines = block.split("\n").map((line) => line.trim());
-
-    lines.forEach((line) => {
-      if (line.match(/^Q[:.]?\s*/i)) {
-        if (currentQuestion && currentAnswer) {
-          qaPairs.push({ question: currentQuestion, answer: currentAnswer });
-        }
-        currentQuestion = line.replace(/^Q[:.]?\s*/i, "").trim();
-        currentAnswer = "";
-        isQuestion = true;
-      } else if (line.match(/^A[:.]?\s*/i)) {
-        currentAnswer = line.replace(/^A[:.]?\s*/i, "").trim();
-        isQuestion = false;
-      } else if (isQuestion && line) {
-        currentQuestion += " " + line;
-      } else if (!isQuestion && line) {
-        currentAnswer += " " + line;
+  for (const line of lines) {
+    if (line.match(/^Q[:.]?\s*/i)) {
+      // If we have a complete pair, save it
+      if (currentQ && currentA) {
+        qaPairs.push({
+          question: currentQ.replace(/^Q[:.]?\s*/i, '').trim(),
+          answer: currentA.trim()
+        });
       }
-    });
-  });
-
-  if (currentQuestion && currentAnswer) {
-    qaPairs.push({ question: currentQuestion, answer: currentAnswer });
+      currentQ = line;
+      currentA = null;
+    } else if (line.match(/^A[:.]?\s*/i) && currentQ) {
+      currentA = line.replace(/^A[:.]?\s*/i, '').trim();
+    } else if (currentA !== null) {
+      currentA += ' ' + line.trim();
+    } else if (currentQ !== null) {
+      currentQ += ' ' + line.trim();
+    }
   }
 
-  if (qaPairs.length < parseInt(numberOfQuestions)) {
-    const remainingText = text.split("\n").filter((line) => line.trim());
-    let fallbackPairs = [];
-    let tempQuestion = "";
-    let tempAnswer = "";
-    let collectingAnswer = false;
-
-    remainingText.forEach((line) => {
-      if (line.match(/^(Q|Question)[:.]?\s*/i) || line.match(/^\d+\.\s*/)) {
-        if (tempQuestion && tempAnswer) {
-          fallbackPairs.push({ question: tempQuestion, answer: tempAnswer });
-        }
-        tempQuestion = line
-          .replace(/^(Q|Question)[:.]?\s*/i, "")
-          .replace(/^\d+\.\s*/, "")
-          .trim();
-        tempAnswer = "";
-        collectingAnswer = false;
-      } else if (
-        line.match(/^(A|Answer)[:.]?\s*/i) ||
-        (tempQuestion && !collectingAnswer)
-      ) {
-        collectingAnswer = true;
-        tempAnswer = line.replace(/^(A|Answer)[:.]?\s*/i, "").trim();
-      } else if (collectingAnswer) {
-        tempAnswer += " " + line.trim();
-      }
+  // Add the last pair if exists
+  if (currentQ && currentA) {
+    qaPairs.push({
+      question: currentQ.replace(/^Q[:.]?\s*/i, '').trim(),
+      answer: currentA.trim()
     });
+  }
 
-    if (tempQuestion && tempAnswer) {
-      fallbackPairs.push({ question: tempQuestion, answer: tempAnswer });
+  // Fallback parsing if standard format fails
+  if (qaPairs.length < expectedCount) {
+    const fallbackPairs = [];
+    const questionRegex = /^(?:\d+\.|Q[:.]?)\s*(.+)/i;
+    const answerRegex = /^A[:.]?\s*(.+)/i;
+
+    let tempQ = null;
+    let tempA = null;
+
+    for (const line of lines) {
+      if (questionRegex.test(line)) {
+        if (tempQ && tempA) {
+          fallbackPairs.push({
+            question: tempQ,
+            answer: tempA
+          });
+        }
+        tempQ = line.replace(questionRegex, '$1').trim();
+        tempA = null;
+      } else if (answerRegex.test(line) && tempQ) {
+        tempA = line.replace(answerRegex, '$1').trim();
+      } else if (tempA !== null) {
+        tempA += ' ' + line.trim();
+      }
+    }
+
+    if (tempQ && tempA) {
+      fallbackPairs.push({
+        question: tempQ,
+        answer: tempA
+      });
     }
 
     qaPairs.push(...fallbackPairs);
   }
 
-  if (qaPairs.length === 0) {
-    return [
-      {
-        question: "Could not parse questions - raw response",
-        answer: text.substring(0, 200),
-      },
-    ];
-  }
-
-  return qaPairs.slice(0, parseInt(numberOfQuestions));
+  return qaPairs.length > 0 ? qaPairs : [{
+    question: "Could not parse questions from response",
+    answer: text.substring(0, 200) + (text.length > 200 ? "..." : "")
+  }];
 }
