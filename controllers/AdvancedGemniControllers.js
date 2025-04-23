@@ -3,7 +3,7 @@ require("dotenv").config();
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-// Enhanced language and tone prompts
+// Enhanced language and tone prompt
 const PROMPT_CONFIG = {
   languages: {
     English: "Generate in professional English with technical accuracy.",
