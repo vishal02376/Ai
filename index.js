@@ -7,6 +7,9 @@ const mockQuestionRoutes = require('./routes/mockQuestionRoutes');
 const pdfRoutes = require('./routes/pdfRoutes'); 
 const advanceGeminiRoutes = require('./routes/AdvanceGemniRoutes');
 const minimalGeminiRoutes = require('./routes/MinimalRoute'); // Add this line for Minimal Generator
+const resumeQuestion = require('./routes/ResumeRoutes/ResumeQuestionRoute')
+
+
 
 const app = express();
 app.use(cors());
@@ -19,7 +22,7 @@ app.use('/api/pdf', pdfRoutes);                 // PDF generation
 // app.use('/api/deepseek-questions', deepSeekRoutes); // http://localhost:5000/api/deepseek-questions/generate
 app.use('/api/gemini', advanceGeminiRoutes); // http://localhost:5000/api/gemini/generate-advanced-questions
 app.use('/api/gemini', minimalGeminiRoutes); // http://localhost:5000/api/gemini/generate-minimal-questions
-
+app.use('/api', resumeQuestion);
 const PORT = process.env.PORT || 5000;
 
 

@@ -6,7 +6,7 @@ module.exports = {
         Hindi: "Generate in formal Hindi with proper technical terms."
       },
       tones: {
-        Professional: "Maintain formal, technical tone.",
+        Professional: "Maintain formal, technical tones.",
         Casual: "Use conversational tone suitable for startups.",
         "Simple for Freshers": "Use simple language for beginners."
       },

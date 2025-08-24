@@ -1,0 +1,2 @@
+doc.registerFont('HindiFont', 'fonts/NotoSansDevanagari-Regular.ttf');
+doc.font('HindiFont');
